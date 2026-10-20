@@ -70,7 +70,7 @@ export function Modal({
           </div>
         ) : null}
         {footer ? (
-          <div className="flex items-center justify-end gap-2.5 border-t border-borderline-light pt-3">
+          <div className="flex flex-col gap-2 border-t border-borderline-light pt-3 sm:flex-row sm:items-center sm:justify-end sm:gap-2.5">
             {footer}
           </div>
         ) : null}

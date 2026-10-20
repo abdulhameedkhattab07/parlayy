@@ -49,7 +49,8 @@ export class SpeechPlayer {
   private sources: AudioBufferSourceNode[] = [];
   private analyser: AnalyserNode;
   private data: Uint8Array<ArrayBuffer>;
-  private stopped = false;
+  private bufferSampleRate = TTS_SAMPLE_RATE;
+  private generation = 0;
   onLevel?: (level: number) => void;
   private levelRaf: number | null = null;
 
@@ -62,7 +63,13 @@ export class SpeechPlayer {
   }
 
   get sampleRate(): number {
-    return TTS_SAMPLE_RATE;
+    return this.bufferSampleRate;
+  }
+
+  setSampleRate(rate: number) {
+    if (Number.isFinite(rate) && rate >= 8000 && rate <= 192000) {
+      this.bufferSampleRate = rate;
+    }
   }
 
   async resume() {
@@ -72,10 +79,14 @@ export class SpeechPlayer {
   }
 
   enqueue(bytes: Uint8Array) {
-    if (this.stopped || bytes.byteLength < 2) return;
+    if (bytes.byteLength < 2) return;
     const sampleCount = Math.floor(bytes.byteLength / 2);
     const view = new DataView(bytes.buffer, bytes.byteOffset, sampleCount * 2);
-    const buffer = this.ctx.createBuffer(1, sampleCount, TTS_SAMPLE_RATE);
+    const buffer = this.ctx.createBuffer(
+      1,
+      sampleCount,
+      this.bufferSampleRate,
+    );
     const channel = buffer.getChannelData(0);
     for (let i = 0; i < sampleCount; i += 1) {
       channel[i] = view.getInt16(i * 2, true) / 0x8000;
@@ -83,7 +94,7 @@ export class SpeechPlayer {
     const source = this.ctx.createBufferSource();
     source.buffer = buffer;
     source.connect(this.analyser);
-    const startAt = Math.max(this.ctx.currentTime + 0.03, this.nextStart);
+    const startAt = Math.max(this.ctx.currentTime + 0.08, this.nextStart);
     source.start(startAt);
     this.nextStart = startAt + buffer.duration;
     this.sources.push(source);
@@ -117,10 +128,11 @@ export class SpeechPlayer {
 
   /** Resolves once every queued chunk has finished playing. */
   waitUntilDone(): Promise<void> {
+    const generation = this.generation;
     this.startMeter();
     return new Promise((resolve) => {
       const check = () => {
-        if (this.stopped) {
+        if (generation !== this.generation) {
           this.stopMeter();
           resolve();
           return;
@@ -137,7 +149,7 @@ export class SpeechPlayer {
   }
 
   stop() {
-    this.stopped = true;
+    this.generation += 1;
     for (const source of this.sources) {
       try {
         source.stop();
@@ -175,6 +187,11 @@ async function fetchToken(attempts = 3): Promise<string> {
   throw lastError instanceof Error
     ? lastError
     : new Error("Could not start a voice session.");
+}
+
+/** Starts minting a TTS token so it can overlap the LLM request. */
+export function prefetchTtsToken(): Promise<string> {
+  return fetchToken().catch(() => "");
 }
 
 export interface SttHandlers {
@@ -338,15 +355,18 @@ export interface SpeakHandle {
 }
 
 /**
- * Streams text to Gradium TTS and plays the resulting audio. Resolves when all
- * audio has finished playing.
+ * Streams text to Gradium TTS and plays the audio as chunks arrive. A short
+ * prebuffer absorbs network jitter, and a byte carry keeps sample boundaries
+ * aligned when the server splits a PCM frame across messages.
  */
 export async function speak(
   text: string,
   voiceId: string,
   player: SpeechPlayer,
+  tokenPromise?: Promise<string>,
 ): Promise<SpeakHandle> {
-  const token = await fetchToken();
+  const token =
+    (tokenPromise ? await tokenPromise : "") || (await fetchToken());
   const url = new URL("wss://api.gradium.ai/api/speech/tts");
   url.searchParams.set("token", token);
   const ws = new WebSocket(url);
@@ -364,19 +384,46 @@ export async function speak(
     resolveDone();
   };
 
+  const PREBUFFER_SECONDS = 0.35;
+  const empty = new Uint8Array(0);
   const pending: Uint8Array[] = [];
-  let bufferedSamples = 0;
+  let pendingSamples = 0;
   let started = false;
+  let carry = empty;
+  let totalSamples = 0;
+  let completed = false;
+  let sampleRate = TTS_SAMPLE_RATE;
+
   const startPlayback = () => {
     started = true;
     for (const chunk of pending.splice(0)) player.enqueue(chunk);
-    bufferedSamples = 0;
+    pendingSamples = 0;
+  };
+
+  const enqueueBytes = (bytes: Uint8Array) => {
+    const samples = Math.floor(bytes.byteLength / 2);
+    if (samples < 1) return;
+    totalSamples += samples;
+    if (started) {
+      player.enqueue(bytes);
+      return;
+    }
+    pending.push(bytes);
+    pendingSamples += samples;
+    if (pendingSamples >= sampleRate * PREBUFFER_SECONDS) startPlayback();
   };
 
   await new Promise<void>((resolve, reject) => {
     const timeout = window.setTimeout(() => {
-      reject(new Error("Voice synthesis timed out connecting."));
-    }, 12_000);
+      reject(new Error("Voice synthesis timed out."));
+    }, 20_000);
+    let settledReady = false;
+    const settleReady = () => {
+      if (settledReady) return;
+      settledReady = true;
+      window.clearTimeout(timeout);
+      resolve();
+    };
 
     ws.onopen = () => {
       ws.send(
@@ -390,28 +437,50 @@ export async function speak(
     };
 
     ws.onmessage = (event) => {
-      let msg: { type?: string; audio?: string; message?: string };
+      let msg: {
+        type?: string;
+        audio?: string;
+        message?: string;
+        sample_rate?: number;
+      };
       try {
         msg = JSON.parse(event.data as string);
       } catch {
         return;
       }
       if (msg.type === "ready") {
-        window.clearTimeout(timeout);
-        resolve();
+        if (msg.sample_rate) {
+          sampleRate = msg.sample_rate;
+          player.setSampleRate(sampleRate);
+        }
         ws.send(JSON.stringify({ type: "text", text }));
         ws.send(JSON.stringify({ type: "end_of_stream" }));
       } else if (msg.type === "audio" && msg.audio) {
         const bytes = base64ToBytes(msg.audio);
-        if (started) {
-          player.enqueue(bytes);
-        } else {
-          pending.push(bytes);
-          bufferedSamples += Math.floor(bytes.byteLength / 2);
-          if (bufferedSamples >= TTS_SAMPLE_RATE * 0.28) startPlayback();
+        let merged = bytes;
+        if (carry.byteLength > 0) {
+          merged = new Uint8Array(carry.byteLength + bytes.byteLength);
+          merged.set(carry);
+          merged.set(bytes, carry.byteLength);
         }
+        const usable = merged.byteLength - (merged.byteLength % 2);
+        if (usable > 0) enqueueBytes(merged.subarray(0, usable));
+        carry = usable < merged.byteLength ? merged.slice(usable) : empty;
+        if (started) settleReady();
       } else if (msg.type === "end_of_stream") {
+        completed = true;
+        window.clearTimeout(timeout);
+        if (carry.byteLength >= 2) {
+          enqueueBytes(carry);
+          carry = empty;
+        }
+        if (totalSamples === 0) {
+          reject(new Error("Voice synthesis returned no audio."));
+          window.setTimeout(() => ws.close(), 50);
+          return;
+        }
         if (!started) startPlayback();
+        settleReady();
         void finish();
         window.setTimeout(() => ws.close(), 50);
       } else if (msg.type === "error") {
@@ -427,6 +496,12 @@ export async function speak(
 
     ws.onclose = () => {
       window.clearTimeout(timeout);
+      if (!completed && !started) {
+        reject(
+          new Error("Voice synthesis connection closed before audio began."),
+        );
+        return;
+      }
       void finish();
     };
   });

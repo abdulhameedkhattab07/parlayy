@@ -15,7 +15,7 @@ const manrope = Manrope({
 });
 
 export const metadata: Metadata = {
-  title: "Parlay — Rehearse the conversation before it happens",
+  title: "Parlayy — Rehearse the conversation before it happens",
   description:
     "A voice-first practice room for difficult conversations. Speak with an AI counterpart that pushes back, then get coaching grounded in your transcript.",
 };

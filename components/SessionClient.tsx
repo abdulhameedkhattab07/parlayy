@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import {
   openSttSession,
+  prefetchTtsToken,
   speak,
   SpeechPlayer,
   type SpeakHandle,
@@ -13,6 +14,7 @@ import {
   type SttSession,
 } from "@/lib/voice/gradium";
 import { startMicrophone, type MicHandle } from "@/lib/voice/mic";
+import { getVoice } from "@/lib/voices";
 import type {
   CoachReport,
   CustomScenario,
@@ -39,6 +41,7 @@ const TURN_SILENCE_MS = 1000;
 const MIN_TURN_CHARS = 2;
 const POST_SPEECH_GUARD_MS = 250;
 const CHAT_HISTORY_LIMIT = 16;
+const FALLBACK_VOICE_ID = "YTpq7expH9539ERJ";
 
 const DIFFICULTY_TIER: Record<Difficulty, number> = {
   easy: 1,
@@ -289,6 +292,7 @@ export function SessionClient({
     if (endedRef.current) return;
     acceptingRef.current = false;
     setPhase("thinking");
+    const ttsToken = prefetchTtsToken();
     const history = transcriptRef.current.slice(-CHAT_HISTORY_LIMIT);
     try {
       const res = await fetch("/api/chat", {
@@ -314,9 +318,38 @@ export function SessionClient({
 
       const player = playerRef.current;
       if (!player) return;
-      setPhase("speaking");
-      const handle = await speak(data.reply, scenario.voice.id, player);
+      let handle: SpeakHandle;
+      let usedFallback = false;
+      try {
+        handle = await speak(data.reply, scenario.voice.id, player, ttsToken);
+      } catch (voiceErr) {
+        console.error(
+          `[tts] voice ${scenario.voice.name} (${scenario.voice.id}) failed`,
+          voiceErr,
+        );
+        if (scenario.voice.id === FALLBACK_VOICE_ID) throw voiceErr;
+        usedFallback = true;
+        try {
+          handle = await speak(data.reply, FALLBACK_VOICE_ID, player);
+        } catch (fallbackErr) {
+          const first =
+            voiceErr instanceof Error ? voiceErr.message : "unknown error";
+          const second =
+            fallbackErr instanceof Error
+              ? fallbackErr.message
+              : "unknown error";
+          throw new Error(
+            `Voice link failed for ${scenario.voice.name} (${first}); the backup voice also failed (${second}).`,
+          );
+        }
+      }
       speakHandleRef.current = handle;
+      if (endedRef.current) {
+        handle.stop();
+        speakHandleRef.current = null;
+        return;
+      }
+      setPhase("speaking");
       await handle.done;
       speakHandleRef.current = null;
       if (endedRef.current) return;
@@ -332,7 +365,11 @@ export function SessionClient({
       processingRef.current = false;
       acceptingRef.current = !mutedRef.current;
       setPhase("listening");
-      setNotice(null);
+      setNotice(
+        usedFallback
+          ? `The voice link for ${scenario.voice.name} failed, so the backup voice (${getVoice(FALLBACK_VOICE_ID)?.name ?? "Emma"}) took over. If this repeats, check the voice id in your Gradium dashboard.`
+          : null,
+      );
       if (interceptQueuedRef.current && !interceptHeldRef.current) {
         interceptQueuedRef.current = false;
         startTurn();
@@ -682,14 +719,14 @@ export function SessionClient({
   return (
     <div className="flex min-h-screen flex-col bg-[#FAFAFA] text-[#121212] selection:bg-[#121212] selection:text-white">
       <header className="sticky top-0 z-40 w-full border-b border-[#EDEDED] bg-white">
-        <div className="mx-auto flex h-16 max-w-[1440px] items-center justify-between gap-4 px-4 sm:px-6">
+        <div className="mx-auto flex h-14 max-w-[1440px] items-center justify-between gap-2 px-3 sm:h-16 sm:gap-4 sm:px-6">
           <div className="flex flex-shrink-0 items-center gap-3.5">
             <Link
               href={"/" as Route}
-              className="flex items-center gap-2 whitespace-nowrap font-display text-[20px] font-extrabold tracking-tight text-[#121212] transition-opacity hover:opacity-85"
+              className="flex items-center gap-2 whitespace-nowrap font-display text-[18px] font-extrabold tracking-tight text-[#121212] transition-opacity hover:opacity-85 sm:text-[20px]"
             >
               <span className="inline-block h-2.5 w-2.5 rounded-full bg-[#121212]" />
-              Parlay
+              Parlayy
             </Link>
             <div className="hidden h-4 w-px bg-[#E5E5E5] sm:block" />
             <div className="hidden items-center gap-2 whitespace-nowrap rounded-full bg-[#F4F4F4] px-2.5 py-1 text-xs font-semibold uppercase tracking-wider text-[#262626] sm:flex">
@@ -716,8 +753,8 @@ export function SessionClient({
             </p>
           </div>
 
-          <div className="flex flex-shrink-0 items-center gap-2.5">
-            <div className="flex items-center gap-1.5 whitespace-nowrap rounded-lg border border-[#E5E5E5] bg-[#F5F5F5] px-2.5 py-1.5 text-xs font-medium text-[#262626]">
+          <div className="flex flex-shrink-0 items-center gap-1.5 sm:gap-2.5">
+            <div className="flex items-center gap-1.5 whitespace-nowrap rounded-lg border border-[#E5E5E5] bg-[#F5F5F5] px-2 py-1.5 text-xs font-medium text-[#262626] sm:px-2.5">
               <Icon name="schedule" className="text-sm text-[#737373]" />
               <span className="font-mono font-semibold tabular-nums text-[#121212]">
                 {mm}:{ss}
@@ -726,7 +763,8 @@ export function SessionClient({
             <button
               type="button"
               onClick={() => setMuted((m) => !m)}
-              className={`flex flex-shrink-0 items-center gap-1.5 whitespace-nowrap rounded-lg border px-3 py-1.5 text-xs font-medium transition-colors ${
+              aria-label={muted ? "Unmute microphone" : "Mute microphone"}
+              className={`flex flex-shrink-0 items-center gap-1.5 whitespace-nowrap rounded-lg border px-2 py-1.5 text-xs font-medium transition-colors sm:px-3 ${
                 muted
                   ? "border-red-200 bg-red-50 text-red-600"
                   : "border-[#E0E0E0] bg-white text-[#171717] hover:bg-[#F5F5F5]"
@@ -743,31 +781,32 @@ export function SessionClient({
             <button
               type="button"
               onClick={() => setEndOpen(true)}
-              className="flex flex-shrink-0 items-center gap-1.5 whitespace-nowrap rounded-lg bg-[#121212] px-3.5 py-1.5 text-xs font-semibold text-white shadow-sm transition-all hover:bg-[#262626]"
+              className="flex flex-shrink-0 items-center gap-1.5 whitespace-nowrap rounded-lg bg-[#121212] px-2.5 py-1.5 text-xs font-semibold text-white shadow-sm transition-all hover:bg-[#262626] sm:px-3.5"
             >
               <Icon name="stop_circle" className="text-[17px] text-red-400" />
-              <span>End &amp; Debrief</span>
+              <span className="hidden sm:inline">End &amp; Debrief</span>
+              <span className="sm:hidden">Debrief</span>
             </button>
           </div>
         </div>
       </header>
 
-      <main className="mx-auto grid min-h-0 w-full max-w-[1440px] flex-1 grid-cols-1 gap-6 p-4 sm:p-6 lg:grid-cols-12">
-        <section className="flex h-[72vh] min-h-[560px] flex-col overflow-hidden rounded-2xl border border-[#E5E5E5] bg-white shadow-sm lg:col-span-8 lg:h-[calc(100vh-170px)]">
-          <div className="flex items-center justify-between border-b border-[#F0F0F0] bg-white/90 px-5 py-3 backdrop-blur-sm">
+      <main className="mx-auto grid min-h-0 w-full max-w-[1440px] flex-1 grid-cols-1 gap-4 p-3 sm:gap-6 sm:p-6 lg:grid-cols-12">
+        <section className="flex h-[calc(100dvh-7.5rem)] min-h-[320px] flex-col overflow-hidden rounded-2xl border border-[#E5E5E5] bg-white shadow-sm sm:min-h-[480px] lg:col-span-8 lg:h-[calc(100vh-170px)]">
+          <div className="flex items-center justify-between gap-3 border-b border-[#F0F0F0] bg-white/90 px-3 py-2.5 backdrop-blur-sm sm:px-5 sm:py-3">
             <div className="flex min-w-0 items-center gap-2.5">
-              <Icon name="forum" className="text-base text-[#525252]" />
+              <Icon name="forum" className="shrink-0 text-base text-[#525252]" />
               <div className="flex min-w-0 items-center gap-2">
                 <span className="whitespace-nowrap text-xs font-bold uppercase tracking-wider text-[#171717]">
                   Direct Audio Channel
                 </span>
-                <span className="text-[#D4D4D4]">•</span>
-                <span className="truncate text-xs text-[#737373]">
+                <span className="hidden text-[#D4D4D4] sm:inline">•</span>
+                <span className="hidden truncate text-xs text-[#737373] sm:inline">
                   Voice-to-Text Transcription (Gradium)
                 </span>
               </div>
             </div>
-            <div className="flex flex-shrink-0 items-center gap-2">
+            <div className="hidden flex-shrink-0 items-center gap-2 sm:flex">
               <span
                 className={`h-2 w-2 rounded-full ${
                   active ? "animate-pulse bg-emerald-500" : "bg-[#D4D4D4]"
@@ -780,7 +819,7 @@ export function SessionClient({
           </div>
 
           {phase === "idle" ? (
-            <div className="flex flex-1 items-center justify-center overflow-y-auto p-6">
+            <div className="flex flex-1 items-center justify-center overflow-y-auto p-4 sm:p-6">
               <div className="w-full max-w-md text-center">
                 <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-[#121212] text-white shadow-md">
                   <Icon name="graphic_eq" className="text-2xl" />
@@ -822,7 +861,7 @@ export function SessionClient({
               </div>
             </div>
           ) : phase === "error" ? (
-            <div className="flex flex-1 items-center justify-center p-6">
+            <div className="flex flex-1 items-center justify-center p-4 sm:p-6">
               <div className="w-full max-w-md text-center">
                 <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-red-50 text-red-600">
                   <Icon name="error" className="text-2xl" />
@@ -851,7 +890,7 @@ export function SessionClient({
               </div>
             </div>
           ) : phase === "connecting" || phase === "ended" ? (
-            <div className="flex flex-1 items-center justify-center p-6 text-center">
+            <div className="flex flex-1 items-center justify-center p-4 text-center sm:p-6">
               <div>
                 <Icon
                   name="progress_activity"
@@ -867,7 +906,7 @@ export function SessionClient({
           ) : (
             <div
               ref={scrollRef}
-              className="flex-1 space-y-5 overflow-y-auto px-4 py-5 sm:px-6"
+              className="flex-1 space-y-5 overflow-y-auto px-3.5 py-4 sm:px-6 sm:py-5"
             >
               {notice ? (
                 <p className="rounded-lg border border-[#E8E8E8] bg-[#FAFAFA] px-3 py-2 text-[11px] leading-relaxed text-[#737373]">
@@ -909,10 +948,10 @@ export function SessionClient({
             </div>
           )}
 
-          <div className="border-t border-[#EDEDED] bg-white p-3 sm:p-4">
-            <div className="flex items-center justify-between gap-3 rounded-xl border border-[#E5E5E5] bg-[#F7F7F7] p-2 shadow-inner sm:p-2.5">
+          <div className="border-t border-[#EDEDED] bg-white p-2.5 sm:p-4">
+            <div className="flex flex-col gap-2 rounded-xl border border-[#E5E5E5] bg-[#F7F7F7] p-2 shadow-inner sm:flex-row sm:items-center sm:justify-between sm:gap-3 sm:p-2.5">
               {useText && phase !== "idle" ? (
-                <div className="flex min-w-0 flex-1 items-center gap-2 pl-1">
+                <div className="flex w-full min-w-0 flex-1 items-center gap-2">
                   <input
                     value={textInput}
                     onChange={(event) => setTextInput(event.target.value)}
@@ -924,19 +963,19 @@ export function SessionClient({
                     }}
                     placeholder="Type your side…"
                     disabled={phase !== "listening"}
-                    className="min-w-0 flex-1 rounded-md border border-[#E5E5E5] bg-white px-3 py-2 text-sm text-[#121212] outline-none placeholder:text-[#A3A3A3] focus:border-[#121212]/40 disabled:opacity-60"
+                    className="min-w-0 flex-1 rounded-md border border-[#E5E5E5] bg-white px-3 py-2.5 text-sm text-[#121212] outline-none placeholder:text-[#A3A3A3] focus:border-[#121212]/40 disabled:opacity-60 sm:py-2"
                   />
                   <button
                     type="button"
                     onClick={submitText}
                     disabled={phase !== "listening"}
-                    className="rounded-md border border-[#E0E0E0] bg-white px-3 py-2 text-xs font-medium text-[#262626] disabled:opacity-50"
+                    className="shrink-0 rounded-md border border-[#E0E0E0] bg-white px-4 py-2.5 text-xs font-medium text-[#262626] disabled:opacity-50 sm:py-2"
                   >
                     Send
                   </button>
                 </div>
               ) : (
-                <div className="flex min-w-0 items-center gap-3 pl-2">
+                <div className="flex w-full min-w-0 flex-1 items-center gap-2 sm:gap-3">
                   <div
                     className={`flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full border ${
                       muted
@@ -952,11 +991,11 @@ export function SessionClient({
                     />
                   </div>
                   <div className="flex min-w-0 flex-col">
-                    <div className="flex items-center gap-2">
+                    <div className="flex min-w-0 items-center gap-2">
                       <span className="whitespace-nowrap text-xs font-bold text-[#121212]">
                         {micLabel}
                       </span>
-                      <span className="whitespace-nowrap rounded border border-[#E0E0E0] bg-white px-1.5 py-0.5 font-mono text-[10px] text-[#525252]">
+                      <span className="hidden whitespace-nowrap rounded border border-[#E0E0E0] bg-white px-1.5 py-0.5 font-mono text-[10px] text-[#525252] sm:inline">
                         Gradium ASR
                       </span>
                     </div>
@@ -967,12 +1006,13 @@ export function SessionClient({
                 </div>
               )}
 
-              <div className="flex flex-shrink-0 items-center gap-2">
+              <div className="flex w-full flex-shrink-0 items-center gap-2 sm:w-auto">
                 <button
                   type="button"
                   onClick={toggleFlag}
                   disabled={lastFlag < 0}
-                  className={`flex items-center gap-1.5 whitespace-nowrap rounded-lg border px-3 py-1.5 text-xs font-medium transition-colors disabled:opacity-40 ${
+                  aria-label={flagged ? "Unflag moment" : "Flag moment"}
+                  className={`flex flex-1 items-center justify-center gap-1.5 whitespace-nowrap rounded-lg border px-3 py-2 text-xs font-medium transition-colors disabled:opacity-40 sm:flex-none sm:py-1.5 ${
                     flagged
                       ? "border-[#121212] bg-[#121212] text-white"
                       : "border-[#E0E0E0] bg-white text-[#262626] hover:bg-[#F0F0F0]"
@@ -982,6 +1022,9 @@ export function SessionClient({
                   <span className="hidden md:inline">
                     {flagged ? "Flagged" : "Flag Moment"}
                   </span>
+                  <span className="md:hidden">
+                    {flagged ? "Flagged" : "Flag"}
+                  </span>
                 </button>
                 <button
                   type="button"
@@ -989,18 +1032,19 @@ export function SessionClient({
                   onPointerUp={onInterceptUp}
                   onPointerCancel={onInterceptUp}
                   disabled={phase === "idle" || phase === "error" || phase === "ended"}
-                  className="flex touch-none select-none items-center gap-1.5 whitespace-nowrap rounded-lg bg-[#121212] px-4 py-2 text-xs font-semibold text-white shadow-sm transition-all hover:bg-[#262626] active:scale-95 disabled:opacity-40"
+                  className="flex flex-1 touch-none select-none items-center justify-center gap-1.5 whitespace-nowrap rounded-lg bg-[#121212] px-3 py-2 text-xs font-semibold text-white shadow-sm transition-all hover:bg-[#262626] active:scale-95 disabled:opacity-40 sm:flex-none sm:px-4"
                 >
                   <Icon name="front_hand" className="text-sm" />
-                  <span>Hold to Intercept</span>
+                  <span className="sm:hidden">Intercept</span>
+                  <span className="hidden sm:inline">Hold to Intercept</span>
                 </button>
               </div>
             </div>
           </div>
         </section>
 
-        <aside className="flex flex-col gap-5 lg:col-span-4">
-          <div className="relative flex flex-col items-center overflow-hidden rounded-2xl border border-[#E5E5E5] bg-white p-5 text-center shadow-sm">
+        <aside className="flex flex-col gap-4 lg:col-span-4 lg:gap-5">
+          <div className="relative flex flex-col items-center overflow-hidden rounded-2xl border border-[#E5E5E5] bg-white p-4 text-center shadow-sm sm:p-5">
             <div className="mb-3 flex w-full items-center justify-between text-xs">
               <span className="text-[11px] font-bold uppercase tracking-wider text-[#737373]">
                 Live Voice Link
@@ -1063,7 +1107,7 @@ export function SessionClient({
             </div>
           </div>
 
-          <div className="flex flex-col gap-4 rounded-2xl border border-[#E5E5E5] bg-white p-5 shadow-sm">
+          <div className="flex flex-col gap-4 rounded-2xl border border-[#E5E5E5] bg-white p-4 shadow-sm sm:p-5">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <Icon name="lightbulb" className="text-lg text-[#121212]" />
@@ -1165,14 +1209,14 @@ export function SessionClient({
             <button
               type="button"
               onClick={() => setEndOpen(false)}
-              className="whitespace-nowrap rounded-lg bg-[#F5F5F5] px-4 py-2 text-xs font-semibold text-[#262626] transition-colors hover:bg-[#EAEAEA]"
+              className="w-full whitespace-nowrap rounded-lg bg-[#F5F5F5] px-4 py-2.5 text-xs font-semibold text-[#262626] transition-colors hover:bg-[#EAEAEA] sm:w-auto sm:py-2"
             >
               Continue Session
             </button>
             <button
               type="button"
               onClick={endSession}
-              className="whitespace-nowrap rounded-lg bg-[#121212] px-4 py-2 text-xs font-semibold text-white transition-colors hover:bg-[#262626]"
+              className="w-full whitespace-nowrap rounded-lg bg-[#121212] px-4 py-2.5 text-xs font-semibold text-white transition-colors hover:bg-[#262626] sm:w-auto sm:py-2"
             >
               View Full Debrief
             </button>

@@ -2,7 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import type { Route } from "next";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Icon } from "./Icon";
 import { SiteFooter } from "./SiteFooter";
 import { SiteHeader } from "./SiteHeader";
@@ -61,6 +61,19 @@ export function ScenarioPicker() {
   const [persona, setPersona] = useState(PERSONAS[0]);
   const [generating, setGenerating] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const textareaRef = useRef<HTMLTextAreaElement | null>(null);
+
+  useEffect(() => {
+    const el = textareaRef.current;
+    if (!el) return;
+    const fit = () => {
+      el.style.height = "auto";
+      el.style.height = `${Math.min(Math.max(el.scrollHeight, 104), 240)}px`;
+    };
+    fit();
+    window.addEventListener("resize", fit);
+    return () => window.removeEventListener("resize", fit);
+  }, [brief]);
 
   async function begin() {
     if (generating) return;
@@ -100,7 +113,7 @@ export function ScenarioPicker() {
     <>
       <SiteHeader />
       <main className="flex w-full flex-1 flex-col items-center">
-        <section className="mx-auto flex w-full max-w-[1240px] flex-col items-center px-6 pb-16 pt-16 sm:px-8 sm:pt-20">
+        <section className="mx-auto flex w-full max-w-[1240px] flex-col items-center px-4 pb-16 pt-12 sm:px-8 sm:pt-20">
           <div className="mb-10 flex max-w-3xl flex-col items-center text-center sm:mb-12">
             <div className="mb-4 inline-flex items-center gap-2 rounded-full border border-borderline bg-canvas-alt px-3 py-1 text-[11px] font-medium uppercase tracking-widest text-ink-muted">
               <span className="h-1.5 w-1.5 rounded-full bg-ink" />
@@ -114,7 +127,7 @@ export function ScenarioPicker() {
               </span>
             </h1>
             <p className="max-w-xl text-center text-base font-normal leading-relaxed text-ink-muted sm:text-lg">
-              Describe the situation. Parlay adopts the counterpart&apos;s
+              Describe the situation. Parlayy adopts the counterpart&apos;s
               persona, anticipates friction, and pressure-tests your composure
               before your reputation is on the line.
             </p>
@@ -122,7 +135,7 @@ export function ScenarioPicker() {
 
           <div className="relative z-10 w-full max-w-[760px]">
             <div className="overflow-hidden rounded-2xl border border-borderline/90 bg-white shadow-[0_4px_30px_rgba(0,0,0,0.04),0_1px_3px_rgba(0,0,0,0.02)] transition-all duration-200">
-              <div className="flex items-center justify-between border-b border-borderline-light bg-[#FAF9F7] px-6 py-4">
+              <div className="flex items-center justify-between gap-3 border-b border-borderline-light bg-[#FAF9F7] px-4 py-4 sm:px-6">
                 <div className="flex items-center gap-2.5">
                   <span className="inline-flex items-center gap-1.5 rounded-md border border-ink/10 bg-ink/5 px-2 py-0.5 font-display text-[11px] font-bold uppercase tracking-wider text-ink">
                     <span className="h-1.5 w-1.5 rounded-full bg-ink" />
@@ -139,47 +152,53 @@ export function ScenarioPicker() {
                       name="verified_user"
                       className="text-[13px] text-emerald-600"
                     />
-                    <span className="text-[11px] font-medium tracking-tight">
+                    <span className="hidden text-[11px] font-medium tracking-tight sm:inline">
                       Zero-retention protocol
                     </span>
                   </div>
                 </div>
               </div>
 
-              <div className="bg-white p-6 pb-5">
+              <div className="bg-white p-4 pb-5 sm:p-6 sm:pb-5">
                 <label className="sr-only" htmlFor="prompt-input">
                   Conversation Details
                 </label>
                 <textarea
                   id="prompt-input"
+                  ref={textareaRef}
                   rows={3}
                   value={brief}
                   onChange={(event) => setBrief(event.target.value)}
                   placeholder="Describe your counterpart, their posture, and what is on the line..."
-                  className="w-full resize-none border-none bg-transparent p-0 font-display text-[18px] font-medium leading-[1.6] tracking-[-0.015em] text-ink outline-none placeholder:text-ink-subtle focus:ring-0 selection:bg-ink selection:text-canvas sm:text-[19px]"
+                  className="max-h-[240px] min-h-[104px] w-full resize-none overflow-y-auto border-none bg-transparent p-0 font-display text-[17px] font-medium leading-[1.6] tracking-[-0.015em] text-ink outline-none placeholder:text-ink-subtle focus:ring-0 selection:bg-ink selection:text-canvas sm:text-[19px]"
                 />
               </div>
 
-              <div className="flex flex-col items-stretch justify-between gap-4 border-t border-borderline-light bg-[#FAF9F7] px-6 py-4 sm:flex-row sm:items-center">
-                <div className="flex w-full flex-col gap-2 sm:w-auto">
-                  <span className="text-[10px] font-semibold uppercase tracking-widest text-ink-subtle">
+              <div className="flex flex-col items-stretch justify-between gap-4 border-t border-borderline-light bg-[#FAF9F7] px-4 py-4 sm:flex-row sm:items-end sm:px-6">
+                <div className="flex w-full flex-col gap-1.5 sm:w-auto">
+                  <label
+                    htmlFor="persona-select"
+                    className="text-[10px] font-semibold uppercase tracking-widest text-ink-subtle"
+                  >
                     Persona
-                  </span>
-                  <div className="flex flex-wrap items-center gap-1.5">
-                    {PERSONAS.map((option) => (
-                      <button
-                        key={option}
-                        type="button"
-                        onClick={() => setPersona(option)}
-                        className={`rounded-md border px-3 py-1 text-[12px] font-medium transition-colors ${
-                          persona === option
-                            ? "border-ink bg-ink text-canvas"
-                            : "border-borderline bg-canvas-card text-ink-muted hover:border-ink/30 hover:text-ink"
-                        }`}
-                      >
-                        {option}
-                      </button>
-                    ))}
+                  </label>
+                  <div className="relative">
+                    <select
+                      id="persona-select"
+                      value={persona}
+                      onChange={(event) => setPersona(event.target.value)}
+                      className="w-full appearance-none rounded-lg border border-borderline bg-white py-2 pl-3 pr-9 text-[12px] font-medium text-ink outline-none transition-colors hover:border-ink/30 focus:border-ink/60 sm:w-[184px]"
+                    >
+                      {PERSONAS.map((option) => (
+                        <option key={option} value={option}>
+                          {option}
+                        </option>
+                      ))}
+                    </select>
+                    <Icon
+                      name="expand_more"
+                      className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 text-[16px] text-ink-muted"
+                    />
                   </div>
                 </div>
 
@@ -195,7 +214,7 @@ export function ScenarioPicker() {
                           type="button"
                           onClick={() => setRigor(step)}
                           aria-label={`Rigor ${step}: ${RIGOR_LABELS[step]}`}
-                          className={`flex h-6 w-6 items-center justify-center rounded text-[11px] font-medium transition-colors ${
+                          className={`flex h-7 w-7 items-center justify-center rounded text-[11px] font-medium transition-colors sm:h-6 sm:w-6 ${
                             rigor === step
                               ? "bg-ink text-canvas"
                               : "text-ink-muted hover:text-ink"
@@ -205,7 +224,7 @@ export function ScenarioPicker() {
                         </button>
                       ))}
                     </div>
-                    <span className="whitespace-nowrap text-[11px] font-medium text-ink-muted">
+                    <span className="hidden whitespace-nowrap text-[11px] font-medium text-ink-muted sm:inline">
                       {RIGOR_LABELS[rigor]}
                     </span>
                   </div>
@@ -213,13 +232,18 @@ export function ScenarioPicker() {
                     type="button"
                     onClick={begin}
                     disabled={generating}
-                    className="flex items-center gap-1.5 whitespace-nowrap rounded-lg bg-ink px-3.5 py-2 text-xs font-semibold text-canvas shadow-sm transition-all hover:bg-[#262626] active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60"
+                    aria-label={
+                      generating ? "Calibrating scenario" : "Begin rehearsal"
+                    }
+                    className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg bg-ink text-canvas shadow-sm transition-all hover:bg-[#262626] active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60 sm:h-auto sm:w-auto sm:gap-1.5 sm:px-3.5 sm:py-2"
                   >
                     <Icon
                       name={generating ? "progress_activity" : "mic"}
-                      className={`text-[15px] ${generating ? "animate-spin" : ""}`}
+                      className={`text-[18px] sm:text-[15px] ${generating ? "animate-spin" : ""}`}
                     />
-                    {generating ? "Calibrating…" : "Begin Rehearsal"}
+                    <span className="hidden text-xs font-semibold sm:inline">
+                      {generating ? "Calibrating…" : "Begin Rehearsal"}
+                    </span>
                   </button>
                 </div>
               </div>
@@ -264,7 +288,7 @@ export function ScenarioPicker() {
                 </h2>
               </div>
               <span className="text-[12px] font-normal text-ink-muted">
-                Trained against thousands of real enterprise negotiations
+                Powered by Gradium
               </span>
             </div>
             <div className="grid grid-cols-1 gap-8 md:grid-cols-3 md:gap-10">
@@ -272,7 +296,7 @@ export function ScenarioPicker() {
                 {
                   num: "01 / CALIBRATION",
                   title: "Pushback Calibration",
-                  body: "Unlike generic assistants, Parlay will not appease or flatter. Counterparts will interrupt tactically, resist concessions, and exploit logical inconsistencies.",
+                  body: "Unlike generic assistants, Parlayy will not appease or flatter. Counterparts will interrupt tactically, resist concessions, and exploit logical inconsistencies.",
                 },
                 {
                   num: "02 / PHYSIOLOGY",

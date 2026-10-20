@@ -13,7 +13,7 @@ export const VOICES: VoiceOption[] = [
     vibe: "warm, brisk, commercially sharp",
   },
   {
-    id: "r2sIQdqqoqgRjuXw",
+    id: "r2sIQdqqoqgRJuXw",
     name: "Marcus",
     gender: "masculine",
     vibe: "crisp, fast, skeptical",

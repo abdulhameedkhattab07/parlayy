@@ -11,7 +11,7 @@ export function SiteHeader() {
             className="flex items-center gap-2 font-display text-2xl font-extrabold tracking-tight text-ink transition-opacity hover:opacity-80 sm:text-[24px]"
           >
             <span className="inline-block h-2.5 w-2.5 rounded-full bg-ink" />
-            Parlay
+            Parlayy
           </Link>
           <span className="hidden font-light text-borderline md:inline-block">
             /

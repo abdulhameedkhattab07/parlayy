@@ -5,16 +5,16 @@ export function SiteFooter({ variant = "home" }: { variant?: "home" | "session" 
         <div className="mx-auto flex max-w-[1440px] flex-col items-center justify-between gap-3 px-4 text-xs text-ink-muted sm:flex-row sm:px-6">
           <div className="flex items-center gap-2 font-display font-bold text-ink">
             <span className="inline-block h-2 w-2 rounded-full bg-ink" />
-            Parlay Voice Rehearsal Engine
+            Parlayy Voice Rehearsal Engine
           </div>
-          <div className="flex items-center gap-5 whitespace-nowrap">
-            <span className="transition-colors hover:text-ink">
+          <div className="flex flex-wrap items-center justify-center gap-x-4 gap-y-2 text-center">
+            <span className="whitespace-nowrap transition-colors hover:text-ink">
               Confidentiality Protocol
             </span>
-            <span className="transition-colors hover:text-ink">
+            <span className="whitespace-nowrap transition-colors hover:text-ink">
               Session Security
             </span>
-            <span className="transition-colors hover:text-ink">
+            <span className="whitespace-nowrap transition-colors hover:text-ink">
               Export Transcript
             </span>
           </div>
@@ -29,7 +29,7 @@ export function SiteFooter({ variant = "home" }: { variant?: "home" | "session" 
         <div className="flex items-center gap-3">
           <span className="flex items-center gap-1.5 font-display text-lg font-extrabold tracking-tight text-ink">
             <span className="inline-block h-2 w-2 rounded-full bg-ink" />
-            Parlay
+            Parlayy
           </span>
         </div>
         <div className="flex flex-wrap items-center justify-center gap-6">
