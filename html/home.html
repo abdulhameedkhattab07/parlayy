@@ -1,0 +1,179 @@
+<!DOCTYPE html><html class="light" lang="en" style=""><head>
+<meta charset="utf-8">
+<meta content="width=device-width, initial-scale=1.0" name="viewport">
+<meta content="web_standard" name="shell-type">
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&amp;family=Manrope:wght@400;500;600;700;800&amp;display=swap" rel="stylesheet" class="">
+<style>
+    @layer base {
+      html, body {
+        margin: 0;
+        padding: 0;
+        background-color: #FAF9F6;
+        color: #111113;
+      }
+      body {
+        overscroll-behavior: none;
+      }
+    }
+    ::-webkit-scrollbar {
+      display: none;
+    }
+    .card-shadow {
+      box-shadow: 0 1px 2px rgba(0, 0, 0, 0.03), 0 8px 32px -4px rgba(17, 17, 19, 0.05);
+    }
+    .serif-display {
+      font-family: 'Instrument Serif', Georgia, serif;
+    }
+    .font-sans-clean {
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    }
+  </style>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script id="tailwind-config">
+    tailwind.config = {
+      darkMode: "class",
+      theme: {
+        extend: {
+          colors: {
+            canvas: "#FAF9F6",
+            "canvas-alt": "#F3F2EE",
+            "canvas-card": "#FFFFFF",
+            ink: "#111113",
+            "ink-muted": "#57575E",
+            "ink-subtle": "#8A8A93",
+            borderline: "#E4E3DF",
+            "borderline-light": "#ECEBE8",
+            accent: "#111113",
+            "tag-bg": "#F0EFEB"
+          },
+          letterSpacing: {
+            tightest: "-0.035em",
+            tighter: "-0.02em",
+            tight: "-0.01em",
+            wide: "0.025em",
+            widest: "0.08em"
+          }
+        }
+      }
+    }
+  </script>
+</head>
+<body class="bg-canvas font-sans-clean text-ink antialiased selection:bg-ink selection:text-canvas min-h-screen flex flex-col justify-between">
+<!-- Executive Minimal Header -->
+<header class="w-full border-b border-borderline/80 bg-canvas/90 backdrop-blur-md sticky top-0 z-40">
+<div class="max-w-[1240px] mx-auto px-6 sm:px-8 h-18 py-4 flex items-center justify-between">
+<div class="flex items-baseline gap-3">
+<a class="text-2xl sm:text-[24px] font-extrabold tracking-tight text-ink hover:opacity-80 transition-opacity flex items-center gap-2" href="#" style="font-family: Manrope, sans-serif;"><span class="w-2.5 h-2.5 bg-ink rounded-full inline-block"></span>Parlay</a>
+<span class="hidden md:inline-block text-borderline font-light">/</span>
+<span class="hidden md:inline-block text-[13px] tracking-wide text-ink-muted font-normal">Voice rehearsal for high-stakes conversations</span>
+</div>
+<nav class="flex items-center gap-6">
+<a class="text-[13px] font-medium tracking-wide text-ink-muted hover:text-ink transition-colors" href="#how-it-works">How it works</a>
+</nav>
+</div>
+</header>
+<main class="w-full flex-1 flex flex-col items-center">
+<!-- Hero Section -->
+<section class="w-full max-w-[1240px] mx-auto px-6 sm:px-8 pt-16 sm:pt-20 pb-16 flex flex-col items-center">
+<!-- Quiet Executive Header Title -->
+<div class="text-center max-w-3xl flex flex-col items-center mb-10 sm:mb-12">
+<div class="inline-flex items-center gap-2 mb-4 px-3 py-1 rounded-full bg-canvas-alt border border-borderline text-[11px] font-medium uppercase tracking-widest text-ink-muted">
+<span class="w-1.5 h-1.5 rounded-full bg-ink"></span>
+          Autonomous Voice Sparring
+        </div>
+<h1 class="text-4xl sm:text-6xl md:text-[64px] font-extrabold leading-[1.08] tracking-[-0.035em] text-ink mb-5 text-center" style="font-family: Manrope, sans-serif;">Get ready for the conversations <br class="hidden sm:inline"><span class="text-ink-muted font-bold">that actually matter.</span></h1>
+<p class="text-ink-muted text-base sm:text-lg max-w-xl font-normal leading-relaxed text-center">
+          Describe the situation. Parlay adopts the counterpart’s persona, anticipates friction, and pressure-tests your composure before your reputation is on the line.
+        </p>
+</div>
+<!-- Crafted Stationery / Executive Composer -->
+<div class="w-full max-w-[760px] relative z-10">
+<div class="bg-white border border-borderline/90 rounded-2xl shadow-[0_4px_30px_rgba(0,0,0,0.04),0_1px_3px_rgba(0,0,0,0.02)] overflow-hidden transition-all duration-200"><div class="flex items-center justify-between px-6 py-4 border-b border-borderline-light bg-[#FAF9F7]"><div class="flex items-center gap-2.5"><span class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md bg-ink/5 border border-ink/10 text-[11px] font-bold uppercase tracking-wider text-ink" style="font-family: 'Manrope', sans-serif;"><span class="w-1.5 h-1.5 rounded-full bg-ink"></span>Scenario Specification</span></div><div class="flex items-center gap-3 text-ink-subtle text-[11px] font-medium"><span class="text-[11px] font-mono text-ink-subtle hidden sm:inline" id="char-count">127 chars</span><span class="text-borderline hidden sm:inline">•</span><div class="flex items-center gap-1.5 text-ink-muted bg-white px-2.5 py-1 rounded-md border border-borderline"><span class="material-symbols-outlined text-[13px] text-emerald-600">verified_user</span><span class="font-medium text-[11px] tracking-tight">Zero-retention protocol</span></div></div></div><div class="p-6 pb-5 bg-white"><label class="sr-only" for="prompt-input">Conversation Details</label><textarea class="w-full bg-transparent text-ink placeholder-ink-subtle text-[18px] sm:text-[19px] leading-[1.6] resize-none outline-none border-none p-0 focus:ring-0 font-medium selection:bg-ink selection:text-canvas" id="prompt-input" rows="3" style="font-family: 'Manrope', 'Inter', sans-serif; letter-spacing: -0.015em;" placeholder="Describe your counterpart, their posture, and what is on the line...">I have a meeting with a client tomorrow. They think my price is too high, and I need to defend my value without losing the deal.</textarea></div><div class="px-6 py-4 bg-[#FAF9F7] border-t border-borderline-light flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4"><div class="flex flex-col gap-2 w-full sm:w-auto"><span class="text-[11px] uppercase tracking-wider font-bold text-ink-subtle" style="font-family: 'Manrope', sans-serif;">Counterpart Persona</span><div class="flex flex-wrap items-center gap-1.5" id="persona-group"><button class="persona-chip px-3.5 py-1.5 rounded-lg text-[12px] font-semibold bg-ink text-white border border-ink shadow-xs transition-all" type="button" style="font-family: 'Manrope', sans-serif;">Skeptical CFO</button><button class="persona-chip px-3.5 py-1.5 rounded-lg text-[12px] font-medium bg-white text-ink-muted border border-borderline hover:text-ink hover:border-ink/30 transition-all" type="button" style="font-family: 'Manrope', sans-serif;">Demanding Client</button><button class="persona-chip px-3.5 py-1.5 rounded-lg text-[12px] font-medium bg-white text-ink-muted border border-borderline hover:text-ink hover:border-ink/30 transition-all" type="button" style="font-family: 'Manrope', sans-serif;">Pragmatic Board</button></div></div><div class="flex flex-col gap-2 sm:items-end w-full sm:w-auto"><span class="text-[11px] uppercase tracking-wider font-bold text-ink-subtle" style="font-family: 'Manrope', sans-serif;">Sparring Rigor</span><div class="flex items-center gap-2.5"><span class="text-[12px] text-ink font-semibold tracking-tight" id="rigor-label" style="font-family: 'Manrope', sans-serif;">High pushback</span><div class="flex items-center bg-white border border-borderline p-1 rounded-lg gap-1 shadow-2xs"><button class="rigor-step w-7 h-7 flex items-center justify-center rounded-md text-[11px] font-bold text-ink-muted hover:text-ink transition-colors" type="button" style="font-family: 'Manrope', sans-serif;">1</button><button class="rigor-step w-7 h-7 flex items-center justify-center rounded-md text-[11px] font-bold text-ink-muted hover:text-ink transition-colors" type="button" style="font-family: 'Manrope', sans-serif;">2</button><button class="rigor-step w-7 h-7 flex items-center justify-center rounded-md text-[11px] font-bold bg-ink text-white shadow-2xs" type="button" style="font-family: 'Manrope', sans-serif;">3</button></div></div></div></div><div class="px-6 py-4 bg-white border-t border-borderline/80 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-4"><div class="flex items-center gap-3.5"><div class="w-9 h-9 rounded-full bg-[#F3F2EE] border border-borderline flex items-center justify-center text-ink"><span class="material-symbols-outlined text-[18px]">mic</span></div><div class="flex flex-col"><div class="flex items-center gap-2"><span class="w-2 h-2 rounded-full bg-emerald-600 animate-pulse"></span><span class="text-[12px] font-bold text-ink tracking-tight" style="font-family: 'Manrope', sans-serif;">Full Duplex Voice</span></div><span class="text-[11px] text-ink-subtle font-mono">&lt;280ms neural latency</span></div></div><button class="inline-flex items-center justify-center gap-2 px-6 py-3.5 rounded-xl bg-ink text-white hover:bg-ink/90 active:scale-[0.99] font-bold text-[13px] tracking-wide transition-all shadow-md" type="button" style="font-family: 'Manrope', sans-serif;"><span class="">Prepare rehearsal session</span><span class="material-symbols-outlined text-[17px]">arrow_forward</span></button></div></div>
+<!-- Four Curated Quick Prompts -->
+<div class="mt-8 flex flex-col items-center">
+<span class="text-[11px] font-semibold uppercase tracking-widest text-ink-subtle mb-3">
+            Pre-calibrated scenarios
+          </span>
+<div class="flex flex-wrap items-center justify-center gap-2"><button class="scenario-pill text-[13px] font-semibold px-4 py-2 rounded-full bg-canvas-card border border-borderline text-ink-muted hover:text-ink hover:border-ink/50 transition-all shadow-2xs" data-prompt="I am negotiating an annual contract renewal with an enterprise client asking for an unprompted 25% discount to stay." type="button" style="font-family: Manrope, sans-serif;">Negotiate a fee</button><button class="scenario-pill text-[13px] font-semibold px-4 py-2 rounded-full bg-canvas-card border border-borderline text-ink-muted hover:text-ink hover:border-ink/50 transition-all shadow-2xs" data-prompt="I am pitching our Series A lead investor who is deeply skeptical of our gross margin sustainability in competitive markets." type="button" style="font-family: Manrope, sans-serif;">Pitch an institutional investor</button><button class="scenario-pill text-[13px] font-semibold px-4 py-2 rounded-full bg-canvas-card border border-borderline text-ink-muted hover:text-ink hover:border-ink/50 transition-all shadow-2xs" data-prompt="I am interviewing for a Chief Product Officer position and need to articulate why I left my last firm after an executive leadership restructure." type="button" style="font-family: Manrope, sans-serif;">Executive interview</button><button class="scenario-pill text-[13px] font-semibold px-4 py-2 rounded-full bg-canvas-card border border-borderline text-ink-muted hover:text-ink hover:border-ink/50 transition-all shadow-2xs" data-prompt="I need to address our board regarding a delayed Q3 product release and present an alternative capital allocation timeline." type="button" style="font-family: Manrope, sans-serif;">Difficult board confrontation</button></div>
+</div>
+</div>
+<!-- Structured 3-Part Credibility Section -->
+<div class="w-full max-w-[1040px] mt-24 pt-16 border-t border-borderline" id="how-it-works">
+<div class="flex flex-col sm:flex-row sm:items-baseline justify-between mb-10 gap-2">
+<div>
+<span class="text-[11px] font-semibold tracking-widest uppercase text-ink-subtle block mb-1">Methodology</span>
+<h2 class="text-2xl sm:text-3xl font-extrabold tracking-tight text-ink" style="font-family: Manrope, sans-serif;">Engineered for executive stakes</h2>
+</div>
+<span class="text-[12px] text-ink-muted font-normal">Trained against thousands of real enterprise negotiations</span>
+</div>
+<div class="grid grid-cols-1 md:grid-cols-3 gap-8 md:gap-10"><div class="flex flex-col border-t-2 border-ink pt-5"><span class="text-[12px] font-mono font-medium text-ink-subtle mb-3">01 / CALIBRATION</span><h3 class="text-xl font-bold tracking-tight text-ink mb-2.5" style="font-family: 'Manrope', sans-serif;">Pushback Calibration</h3><p class="text-ink-muted text-[14px] leading-relaxed font-normal">Unlike generic assistants, Parlay will not appease or flatter. Counterparts will interrupt tactically, resist concessions, and exploit logical inconsistencies.</p></div><div class="flex flex-col border-t-2 border-ink pt-5"><span class="text-[12px] font-mono font-medium text-ink-subtle mb-3">02 / PHYSIOLOGY</span><h3 class="text-xl font-bold tracking-tight text-ink mb-2.5" style="font-family: 'Manrope', sans-serif;">Physiological Desensitization</h3><p class="text-ink-muted text-[14px] leading-relaxed font-normal">Spoken, natural voice sparring conditions your vagal response. You practice holding strategic silence, controlling inflection, and remaining grounded under direct skepticism.</p></div><div class="flex flex-col border-t-2 border-ink pt-5"><span class="text-[12px] font-mono font-medium text-ink-subtle mb-3">03 / DIAGNOSTIC</span><h3 class="text-xl font-bold tracking-tight text-ink mb-2.5" style="font-family: 'Manrope', sans-serif;">Voice &amp; Transcript Debrief</h3><p class="text-ink-muted text-[14px] leading-relaxed font-normal">Every round produces an actionable executive brief: premature concessions highlighted, filler density catalogued, and alternative rhetorical framings prescribed.</p></div></div>
+</div>
+</section>
+</main>
+<!-- Clean Editorial Footer -->
+<footer class="w-full border-t border-borderline bg-canvas py-8">
+<div class="max-w-[1240px] mx-auto px-6 sm:px-8 flex flex-col sm:flex-row items-center justify-between gap-4">
+<div class="flex items-center gap-3">
+<span class="text-lg font-extrabold tracking-tight text-ink flex items-center gap-1.5" style="font-family: Manrope, sans-serif;"><span class="w-2 h-2 bg-ink rounded-full inline-block"></span>Parlay</span>
+
+</div>
+<div class="flex items-center gap-6">
+<a class="text-[12px] text-ink-muted hover:text-ink transition-colors" href="#">Confidentiality Protocol</a>
+<a class="text-[12px] text-ink-muted hover:text-ink transition-colors" href="#">Institutional Licensing</a>
+<a class="text-[12px] text-ink-muted hover:text-ink transition-colors" href="#">Terms of Engagement</a>
+</div>
+</div>
+</footer>
+<script>
+    (function() {
+      // Scenario pill population
+      const promptInput = document.getElementById('prompt-input');
+      const scenarioPills = document.querySelectorAll('.scenario-pill');
+      scenarioPills.forEach(pill => {
+        pill.addEventListener('click', () => {
+          const promptText = pill.getAttribute('data-prompt');
+          if (promptInput && promptText) {
+            promptInput.value = promptText;
+            promptInput.focus();
+          }
+        });
+      });
+
+      // Persona chip selector
+      const personaChips = document.querySelectorAll('.persona-chip');
+      personaChips.forEach(chip => {
+        chip.addEventListener('click', () => {
+          personaChips.forEach(c => {
+            c.className = 'persona-chip px-3 py-1 rounded-md text-[12px] font-medium bg-canvas-card text-ink-muted border border-borderline hover:text-ink hover:border-ink/30 transition-colors';
+          });
+          chip.className = 'persona-chip px-3 py-1 rounded-md text-[12px] font-medium bg-ink text-canvas border border-ink transition-colors';
+        });
+      });
+
+      // Rigor level selector
+      const rigorSteps = document.querySelectorAll('.rigor-step');
+      const rigorLabel = document.getElementById('rigor-label');
+      const levels = {
+        '1': 'Exploratory tone',
+        '2': 'Balanced rigor',
+        '3': 'High pushback'
+      };
+
+      rigorSteps.forEach(step => {
+        step.addEventListener('click', () => {
+          rigorSteps.forEach(s => {
+            s.className = 'rigor-step w-6 h-6 flex items-center justify-center rounded text-[11px] font-medium text-ink-muted hover:text-ink';
+          });
+          step.className = 'rigor-step w-6 h-6 flex items-center justify-center rounded text-[11px] font-medium bg-ink text-canvas';
+          const val = step.textContent.trim();
+          if (rigorLabel && levels[val]) {
+            rigorLabel.textContent = levels[val];
+          }
+        });
+      });
+    })();
+  </script>
+
+
+</body></html>
