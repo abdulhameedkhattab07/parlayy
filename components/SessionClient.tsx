@@ -6,7 +6,6 @@ import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import {
   openSttSession,
-  prefetchTtsToken,
   speak,
   SpeechPlayer,
   type SpeakHandle,
@@ -290,9 +289,9 @@ export function SessionClient({
 
   async function respond() {
     if (endedRef.current) return;
+    processingRef.current = true;
     acceptingRef.current = false;
     setPhase("thinking");
-    const ttsToken = prefetchTtsToken();
     const history = transcriptRef.current.slice(-CHAT_HISTORY_LIMIT);
     try {
       const res = await fetch("/api/chat", {
@@ -317,11 +316,14 @@ export function SessionClient({
       void refreshCoach();
 
       const player = playerRef.current;
-      if (!player) return;
+      if (!player) {
+        processingRef.current = false;
+        return;
+      }
       let handle: SpeakHandle;
       let usedFallback = false;
       try {
-        handle = await speak(data.reply, scenario.voice.id, player, ttsToken);
+        handle = await speak(data.reply, scenario.voice.id, player);
       } catch (voiceErr) {
         console.error(
           `[tts] voice ${scenario.voice.name} (${scenario.voice.id}) failed`,

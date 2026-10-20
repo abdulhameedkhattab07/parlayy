@@ -163,18 +163,66 @@ export class SpeechPlayer {
   }
 }
 
-async function fetchToken(attempts = 3): Promise<string> {
+export type GradiumRegion = "eu" | "us";
+
+export interface GradiumToken {
+  token: string;
+  region: GradiumRegion;
+  expiresAt: string | null;
+  expiresInMs: number | null;
+}
+
+const MIN_CLIENT_TOKEN_MS = 750;
+
+async function fetchToken(attempts = 3): Promise<GradiumToken> {
   let lastError: unknown;
   for (let attempt = 0; attempt < attempts; attempt += 1) {
     try {
-      const res = await fetch("/api/gradium/token", { method: "POST" });
+      const res = await fetch("/api/gradium/token", {
+        method: "POST",
+        cache: "no-store",
+      });
       const data = (await res.json().catch(() => null)) as
-        | { token?: string; error?: string }
+        | {
+            token?: string;
+            region?: string;
+            expires_at?: string | null;
+            expires_in_ms?: number | null;
+            error?: string;
+          }
         | null;
-      if (res.ok && data?.token) return data.token;
-      lastError = new Error(
-        data?.error ?? `Voice token request failed (${res.status}).`,
-      );
+
+      if (res.ok && data?.token) {
+        const region: GradiumRegion =
+          data.region === "eu" || data.region === "us" ? data.region : "us";
+        const parsed = data.expires_at ? Date.parse(data.expires_at) : Number.NaN;
+        const expiresInMs = Number.isFinite(parsed)
+          ? parsed - Date.now()
+          : typeof data.expires_in_ms === "number"
+            ? data.expires_in_ms
+            : null;
+
+        if (expiresInMs !== null && expiresInMs <= 0) {
+          lastError = new Error("The voice token expired before use.");
+        } else if (
+          expiresInMs !== null &&
+          expiresInMs < MIN_CLIENT_TOKEN_MS &&
+          attempt < attempts - 1
+        ) {
+          lastError = new Error("The voice token was too close to expiry.");
+        } else {
+          return {
+            token: data.token,
+            region,
+            expiresAt: data.expires_at ?? null,
+            expiresInMs,
+          };
+        }
+      } else {
+        lastError = new Error(
+          data?.error ?? `Voice token request failed (${res.status}).`,
+        );
+      }
     } catch (err) {
       lastError = err;
     }
@@ -187,11 +235,6 @@ async function fetchToken(attempts = 3): Promise<string> {
   throw lastError instanceof Error
     ? lastError
     : new Error("Could not start a voice session.");
-}
-
-/** Starts minting a TTS token so it can overlap the LLM request. */
-export function prefetchTtsToken(): Promise<string> {
-  return fetchToken().catch(() => "");
 }
 
 export interface SttHandlers {
@@ -213,8 +256,8 @@ export async function openSttSession(
   handlers: SttHandlers,
   opts: { language?: string; delayInFrames?: number; sampleRate?: number } = {},
 ): Promise<SttSession> {
-  const token = await fetchToken();
-  const url = new URL("wss://api.gradium.ai/api/speech/asr");
+  const { token, region } = await fetchToken();
+  const url = new URL(`wss://${region}.api.gradium.ai/api/speech/asr`);
   url.searchParams.set("token", token);
   const ws = new WebSocket(url);
   const inputFormat =
@@ -359,16 +402,16 @@ export interface SpeakHandle {
  * prebuffer absorbs network jitter, and a byte carry keeps sample boundaries
  * aligned when the server splits a PCM frame across messages.
  */
-export async function speak(
+async function speakOnce(
   text: string,
   voiceId: string,
   player: SpeechPlayer,
-  tokenPromise?: Promise<string>,
+  tokenInfo: GradiumToken,
 ): Promise<SpeakHandle> {
-  const token =
-    (tokenPromise ? await tokenPromise : "") || (await fetchToken());
-  const url = new URL("wss://api.gradium.ai/api/speech/tts");
-  url.searchParams.set("token", token);
+  const url = new URL(
+    `wss://${tokenInfo.region}.api.gradium.ai/api/speech/tts`,
+  );
+  url.searchParams.set("token", tokenInfo.token);
   const ws = new WebSocket(url);
 
   let settled = false;
@@ -416,6 +459,7 @@ export async function speak(
   await new Promise<void>((resolve, reject) => {
     const timeout = window.setTimeout(() => {
       reject(new Error("Voice synthesis timed out."));
+      window.setTimeout(() => ws.close(), 50);
     }, 20_000);
     let settledReady = false;
     const settleReady = () => {
@@ -441,6 +485,7 @@ export async function speak(
         type?: string;
         audio?: string;
         message?: string;
+        code?: number;
         sample_rate?: number;
       };
       try {
@@ -485,7 +530,9 @@ export async function speak(
         window.setTimeout(() => ws.close(), 50);
       } else if (msg.type === "error") {
         window.clearTimeout(timeout);
-        reject(new Error(msg.message ?? "Voice synthesis error."));
+        const detail = msg.message ?? "Voice synthesis error.";
+        reject(new Error(msg.code ? `${detail} (code ${msg.code})` : detail));
+        window.setTimeout(() => ws.close(), 50);
       }
     };
 
@@ -494,11 +541,14 @@ export async function speak(
       reject(new Error("Could not reach the voice service."));
     };
 
-    ws.onclose = () => {
+    ws.onclose = (event) => {
       window.clearTimeout(timeout);
       if (!completed && !started) {
+        const detail = event.reason ? `: ${event.reason}` : "";
         reject(
-          new Error("Voice synthesis connection closed before audio began."),
+          new Error(
+            `Voice synthesis connection closed before audio began (${event.code}${detail}).`,
+          ),
         );
         return;
       }
@@ -519,4 +569,34 @@ export async function speak(
     },
     done,
   };
+}
+
+function isTokenError(err: unknown): boolean {
+  if (!(err instanceof Error)) return false;
+  const message = err.message.toLowerCase();
+  return (
+    message.includes("token") &&
+    (message.includes("invalid") ||
+      message.includes("expired") ||
+      message.includes("expiry"))
+  );
+}
+
+/**
+ * Mints a fresh token immediately before opening the TTS socket. Tokens expire
+ * in a few seconds, so they must not be prefetched across the LLM request.
+ */
+export async function speak(
+  text: string,
+  voiceId: string,
+  player: SpeechPlayer,
+): Promise<SpeakHandle> {
+  const first = await fetchToken();
+  try {
+    return await speakOnce(text, voiceId, player, first);
+  } catch (err) {
+    if (!isTokenError(err)) throw err;
+    const fresh = await fetchToken();
+    return speakOnce(text, voiceId, player, fresh);
+  }
 }
