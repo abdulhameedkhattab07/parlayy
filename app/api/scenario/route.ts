@@ -1,5 +1,10 @@
 import { NextResponse } from "next/server";
-import { chatComplete, extractJson, LlmError } from "@/lib/llm";
+import {
+  chatComplete,
+  defaultScenarioModel,
+  extractJson,
+  LlmError,
+} from "@/lib/llm";
 import { buildScenarioGeneratorPrompt } from "@/lib/prompt";
 import {
   customScenarioSchema,
@@ -30,13 +35,21 @@ export async function POST(request: Request) {
   const { system, user } = buildScenarioGeneratorPrompt(brief, rigor);
 
   try {
+    const started = Date.now();
     const raw = await chatComplete(
       [
         { role: "system", content: system },
         { role: "user", content: user },
       ],
-      { json: true, maxTokens: 4000, temperature: 0.7, reasoning: "low" },
+      {
+        model: defaultScenarioModel(),
+        json: true,
+        maxTokens: 1200,
+        temperature: 0.7,
+        reasoning: "off",
+      },
     );
+    console.info(`[scenario] generated in ${Date.now() - started}ms`);
     const json = extractJson(raw);
     const generated = generatedScenarioSchema.safeParse(json);
     if (!generated.success) {

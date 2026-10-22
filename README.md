@@ -273,14 +273,16 @@ Parlayy supports four providers. Pick one:
 
 | Provider | `LLM_PROVIDER` | Key variable(s) | Default model |
 | --- | --- | --- | --- |
-| OpenRouter | `openrouter` | `LLM_API_KEY` or `OPENROUTER_API_KEY` | `minimax/minimax-m3.1-flash:free` |
+| OpenRouter | `openrouter` | `LLM_API_KEY` or `OPENROUTER_API_KEY` | `minimax/minimax-m3.1-flash` |
 | OpenAI | `openai` | `LLM_API_KEY` or `OPENAI_API_KEY` | `gpt-4o-mini` |
 | Groq | `groq` | `LLM_API_KEY` or `GROQ_API_KEY` | `llama-3.3-70b-versatile` |
 | Anthropic | `anthropic` | `LLM_API_KEY` or `ANTHROPIC_API_KEY` | `claude-3-5-sonnet-latest` |
 
 If `LLM_PROVIDER` is omitted, Parlayy infers it from whichever provider-specific key is present. If you use an OpenAI-compatible proxy or a custom endpoint, set `LLM_BASE_URL` and optionally `LLM_MODEL`.
 
-> The default OpenRouter model is a free-tier model. Free models are rate-limited and can occasionally return empty responses under load. If you see that, set a paid `LLM_MODEL` or use another provider.
+On OpenRouter, scenario generation uses the free `nvidia/nemotron-3.5-lightning:free` model regardless of `LLM_MODEL`. The conversation, coaching, and report calls continue to use `LLM_MODEL`.
+
+> The default OpenRouter model is a low-cost paid model. Free variants are rate-limited and can be retired; if you use one, expect slower scenario generation and occasional empty responses. Set a paid `LLM_MODEL` or use another provider for consistent latency.
 
 ### 4. Configure environment variables
 
@@ -304,7 +306,7 @@ LLM_PROVIDER=openrouter
 LLM_API_KEY=your_llm_key
 
 # Optional. Defaults to the provider's default model.
-LLM_MODEL=minimax/minimax-m3.1-flash:free
+LLM_MODEL=minimax/minimax-m3.1-flash
 
 # Optional. Only needed for OpenAI-compatible proxies/custom endpoints.
 LLM_BASE_URL=
@@ -639,6 +641,11 @@ Gradium temporary tokens are valid for only a few seconds and are bound to the c
 ### "Could not reach the voice service"
 - The browser could not open the Gradium WebSocket. Check network/firewall/proxy settings.
 - Reload the page and try again; tokens are short-lived.
+
+### "Calibrating…" takes too long
+- On OpenRouter, scenario generation uses the free `nvidia/nemotron-3.5-lightning:free` model. Free models are slower and more variable than paid ones.
+- The scenario prompt is capped to a small output budget and reasoning is disabled for this call.
+- If you need faster calibration, use a paid `LLM_MODEL` or a fast provider such as Groq's free tier.
 
 ### LLM errors
 - **No LLM credentials configured** — set `LLM_PROVIDER` and the matching key in `.env.local`, then restart the server.

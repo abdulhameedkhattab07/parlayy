@@ -21,6 +21,13 @@ const PROVIDER_ENV_KEYS: Record<string, string[]> = {
   anthropic: ["LLM_API_KEY", "ANTHROPIC_API_KEY"],
 };
 
+const FREE_SCENARIO_MODEL = "nvidia/nemotron-3.5-lightning:free";
+
+export function defaultScenarioModel(): string | undefined {
+  if (process.env.LLM_BASE_URL?.trim()) return undefined;
+  return inferProvider() === "openrouter" ? FREE_SCENARIO_MODEL : undefined;
+}
+
 function firstEnv(keys: string[]): string | undefined {
   for (const key of keys) {
     const value = process.env[key]?.trim();
@@ -56,7 +63,7 @@ function resolveProvider(): { config: ProviderConfig; apiKey: string } | null {
     openrouter: {
       baseUrl: "https://openrouter.ai/api/v1",
       style: "openai",
-      defaultModel: "minimax/minimax-m3.1-flash:free",
+      defaultModel: "minimax/minimax-m3.1-flash",
       supportsJsonMode: false,
     },
     groq: {
@@ -148,10 +155,14 @@ async function fetchWithRetry(
 ): Promise<Response> {
   let lastError: unknown;
   for (let attempt = 0; attempt < attempts; attempt += 1) {
+    const started = Date.now();
     try {
       return await fetch(url, init);
     } catch (err) {
       lastError = err;
+      console.warn(
+        `[llm] attempt ${attempt + 1}/${attempts} failed in ${Date.now() - started}ms: ${describeFetchError(err)}`,
+      );
       if (init.signal?.aborted) throw err;
       if (attempt < attempts - 1) {
         await new Promise((resolve) =>
@@ -166,10 +177,11 @@ async function fetchWithRetry(
 export async function chatComplete(
   messages: LlmMessage[],
   opts: {
+    model?: string;
     json?: boolean;
     maxTokens?: number;
     temperature?: number;
-    reasoning?: "minimal" | "low" | "medium" | "high";
+    reasoning?: "off" | "minimal" | "low" | "medium" | "high";
   } = {},
 ): Promise<string> {
   const resolved = resolveProvider();
@@ -180,6 +192,7 @@ export async function chatComplete(
     );
   }
   const { config, apiKey } = resolved;
+  const model = opts.model?.trim() || config.defaultModel;
 
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), 45_000);
@@ -205,7 +218,7 @@ export async function chatComplete(
           "anthropic-version": "2023-06-01",
         },
         body: JSON.stringify({
-          model: config.defaultModel,
+          model,
           max_tokens: opts.maxTokens ?? 900,
           temperature: opts.temperature ?? 0.8,
           system,
@@ -232,7 +245,7 @@ export async function chatComplete(
     }
 
     const body: Record<string, unknown> = {
-      model: config.defaultModel,
+      model,
       messages,
       temperature: opts.temperature ?? 0.8,
       max_tokens: opts.maxTokens ?? 900,
@@ -243,10 +256,13 @@ export async function chatComplete(
     if (config.baseUrl.includes("openrouter.ai")) {
       // Reasoning tokens count against max_tokens. Keep them bounded so the
       // model cannot burn the whole budget thinking and return empty content.
-      body.reasoning = {
-        effort: opts.reasoning ?? (opts.json ? "low" : "minimal"),
-        exclude: true,
-      };
+      body.reasoning =
+        opts.reasoning === "off"
+          ? { enabled: false, exclude: true }
+          : {
+              effort: opts.reasoning ?? (opts.json ? "low" : "minimal"),
+              exclude: true,
+            };
     }
 
     const res = await fetchWithRetry(`${config.baseUrl}/chat/completions`, {
@@ -287,9 +303,7 @@ export async function chatComplete(
         .filter(Boolean)
         .join("; ");
       console.error(
-        `[llm] empty response from ${config.defaultModel}${
-          details ? ` (${details})` : ""
-        }`,
+        `[llm] empty response from ${model}${details ? ` (${details})` : ""}`,
       );
       throw new LlmError(
         `LLM returned an empty response${
@@ -305,10 +319,10 @@ export async function chatComplete(
       throw new LlmError("LLM request timed out", 504);
     }
     console.error(
-      `[llm] request to ${config.baseUrl} (model ${config.defaultModel}) failed: ${describeFetchError(err)}`,
+      `[llm] request to ${config.baseUrl} (model ${model}) failed: ${describeFetchError(err)}`,
     );
     throw new LlmError(
-      `Could not reach the LLM provider at ${config.baseUrl} (model ${config.defaultModel}): ${describeFetchError(err)}`,
+      `Could not reach the LLM provider at ${config.baseUrl} (model ${model}): ${describeFetchError(err)}`,
       502,
     );
   } finally {
